@@ -118,9 +118,10 @@ def sf_jwt_auth():
 def sf_generate_manifest():
     # Only Profiles & PermissionSets
     ensure_dir(Path("manifest/permsOnly.xml"))
-    run('sf project generate manifest --name permsOnly.xml --metadata "Profile,PermissionSet"')
+    run('sf project generate manifest --name permsOnly.xml --metadata "Profile,PermissionSet,CustomObject,CustomField,CustomPermission"')
 
 def sf_retrieve(alias):
+    print('Startting Retreval')
     # Retrieve into source format in the repo
     run(f'sf project retrieve start --manifest "manifest/permsOnly.xml" --target-org "{alias}"')
 
