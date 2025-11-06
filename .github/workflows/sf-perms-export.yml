@@ -1,0 +1,67 @@
+name: SF Permissions Export
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 1 * * *"  # 06:45 IST daily (adjust as needed)
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node (for SF CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Salesforce CLI
+        run: npm install -g @salesforce/cli
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Write JWT key
+        run: |
+          mkdir -p .secrets
+          echo "${{ secrets.SF_JWT_KEY_PEM }}" > .secrets/server.key
+          chmod 600 .secrets/server.key
+
+      - name: Run export
+        env:
+          # --- Salesforce (JWT) ---
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CONSUMER_KEY: ${{ secrets.SF_CONSUMER_KEY }}
+          SF_INSTANCE_URL: ${{ secrets.SF_INSTANCE_URL }} # ex: https://login.salesforce.com
+          SF_JWT_KEY_FILE: .secrets/server.key
+          SF_ALIAS: permsexport
+
+          # --- Microsoft Graph (App) ---
+          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+          MS_ONEDRIVE_USER: ${{ secrets.MS_ONEDRIVE_USER }} # user@yourtenant.com
+
+        run: |
+          python scripts/sf_perms_export.py \
+            --source-root . \
+            --output artifacts/permissions-summary.xlsx \
+            --onedrive-dest "SalesforceReports/permissions-summary.xlsx"
+
+      - name: Upload artifact (CI fallback)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: permissions-summary
+          path: artifacts/permissions-summary.xlsx
